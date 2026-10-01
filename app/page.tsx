@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, Edit3, Feather, FileText, Gamepad2, Home as HomeIcon, Menu, Moon, Pin, Plus, Search, Settings, Sparkles, Sun, Trash2, X } from 'lucide-react'
 
 type View = 'home' | 'journal' | 'reflect' | 'insights' | 'games' | 'progress' | 'reports' | 'settings'
@@ -22,18 +22,27 @@ export default function NeuroMirror() {
   const [draftTags, setDraftTags] = useState('')
   const [draftMood, setDraftMood] = useState('')
   const [query, setQuery] = useState('')
+  const [loadingEntries, setLoadingEntries] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/journal').then(response => response.ok ? response.json() : []).then(data => setEntries(data)).catch(() => setEntries([])).finally(() => setLoadingEntries(false))
+  }, [])
 
   const filtered = useMemo(() => entries.filter(entry => `${entry.title} ${entry.body} ${entry.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())), [entries, query])
   const openEditor = (entry?: Entry) => { setEditingId(entry?.id ?? null); setDraft(entry?.body ?? ''); setDraftTitle(entry?.title ?? ''); setDraftTags(entry?.tags.join(', ') ?? ''); setDraftMood(entry?.mood === 'Unrated' ? '' : entry?.mood ?? ''); setEditorOpen(true) }
-  const saveEntry = () => {
+  const saveEntry = async () => {
     const body = draft.trim(); if (!body) return
     const title = draftTitle.trim() || body.split(/[.!?]/)[0].slice(0, 60) || 'Untitled entry'
     const tags = draftTags.split(',').map(tag => tag.trim().replace(/^#/, '')).filter(Boolean).slice(0, 8)
-    setEntries(current => editingId ? current.map(entry => entry.id === editingId ? { ...entry, title, body, tags, mood: draftMood || 'Unrated', updatedAt: new Date().toISOString() } : entry) : [{ id: crypto.randomUUID(), title, body, createdAt: new Date().toISOString(), tags, mood: draftMood || 'Unrated' }, ...current])
+    const payload = { id: editingId, title, body, tags, mood: draftMood || 'Unrated' }
+    const response = await fetch('/api/journal', { method: editingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    if (!response.ok) return
+    const saved = await response.json()
+    setEntries(current => editingId ? current.map(entry => entry.id === editingId ? saved : entry) : [saved, ...current])
     setDraft(''); setDraftTitle(''); setDraftTags(''); setDraftMood(''); setEditingId(null); setEditorOpen(false); setView('journal')
   }
-  const deleteEntry = (id: string) => setEntries(current => current.filter(entry => entry.id !== id))
-  const togglePin = (id: string) => setEntries(current => current.map(entry => entry.id === id ? { ...entry, pinned: !entry.pinned } : entry).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))))
+  const deleteEntry = async (id: string) => { await fetch(`/api/journal?id=${encodeURIComponent(id)}`, { method: 'DELETE' }); setEntries(current => current.filter(entry => entry.id !== id)) }
+  const togglePin = async (id: string) => { const entry = entries.find(item => item.id === id); if (!entry) return; const saved = await fetch('/api/journal', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...entry, pinned: !entry.pinned }) }).then(response => response.json()); setEntries(current => current.map(item => item.id === id ? saved : item).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))) }
 
   return <main className={dark ? 'dark min-h-screen' : 'min-h-screen'}><div className="flex min-h-screen bg-background text-foreground">
     <aside className={`${mobileOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-20 flex w-72 flex-col border-r border-border bg-card p-6 transition-transform lg:static lg:translate-x-0`}>
