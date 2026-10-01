@@ -9,12 +9,15 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.87",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "@tailwindcss/postcss": "^4.3.3",
+    "ai": "^7.0.124",
     "clsx": "latest",
     "lucide-react": "latest",
     "next": "latest",
+    "postgres": "^3.4.9",
     "react": "latest",
     "react-dom": "latest",
     "tailwind-merge": "latest",
