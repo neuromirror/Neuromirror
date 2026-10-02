@@ -1,8 +1,9 @@
-import { google } from '@ai-sdk/google'
+import { createGoogle } from '@ai-sdk/google'
 import { generateText } from 'ai'
 import { NextResponse } from 'next/server'
 
 const MODEL = 'gemini-2.5-flash-lite'
+const gemini = createGoogle({ apiKey: process.env.GEMINI_API_KEY })
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +24,7 @@ Requested task: ${action === 'analyze' ? 'Return three concise, non-clinical obs
 Entry:\n\n${text}`
 
     const result = await generateText({
-      model: google(MODEL),
+      model: gemini(MODEL),
       system: 'You are NeuroMirror, a warm, grounded journaling companion powered by Gemini. Protect user agency and privacy. Keep responses under 120 words. Never diagnose, label, or provide medical advice.',
       prompt,
     })
